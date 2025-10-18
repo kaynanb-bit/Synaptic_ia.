@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SYNAPTIC ENGINEERING AI</title>
+  <style>
+    body {
+      background: linear-gradient(180deg, #00172b 0%, #00112a 100%);
+      color: white;
+      font-family: 'Consolas', monospace;
+      margin: 0;
+      padding: 0;
+    }
+    .header {
+      text-align: center;
+      padding: 20px;
+      background: rgba(0,0,0,0.3);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .header h1 {
+      color: #00e5ff;
+      font-size: 2.4rem;
+      margin: 0;
+      text-shadow: 0 0 10px rgba(0,229,255,0.5);
+    }
+    .header p {
+      color: #cfeff7;
+      margin: 4px 0 0 0;
+      font-size: 1rem;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 10px;
+    }
+    .chat-box {
+      height: 60vh;
+      overflow-y: auto;
+      border: 1px solid #0074d9;
+      padding: 10px;
+      margin: 10px 0;
+      background: rgba(0,20,40,0.3);
+      border-radius: 8px;
+    }
+    .message {
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 6px;
+      max-width: 85%;
+      word-wrap: break-word;
+    }
+    .user {
+      background: #eef8ff;
+      color: #02203a;
+      margin-left: auto;
+      text-align: right;
+    }
+    .assistant {
+      background: #2ecc71;
+      color: white;
+      margin-right: auto;
+    }
+    .input-area {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    input, button, textarea {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #0074d9;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-family: monospace;
+    }
+    textarea {
+      width: 100%;
+      min-height: 50px;
+      resize: none;
+    }
+    .file-upload, .equation-section {
+      margin-top: 15px;
+    }
+    .equation-result {
+      margin-top: 8px;
+      color: #2ecc71;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>SYNAPTIC ENGINEERING AI</h1>
+    <p>Perfis técnicos claros e relatórios de engenharia — peça o cálculo que precisar.</p>
+  </div>
+
+  <div class="container">
+    <div class="chat-box" id="chatBox"></div>
+
+    <div class="file-upload">
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" />
+      <button onclick="uploadFile()">📤 Enviar arquivo</button>
+    </div>
+
+    <div class="input-area">
+      <textarea id="userInput" placeholder="Ex: 'Calcule a flecha máxima de uma viga de aço com L=6m...'"></textarea>
+      <button onclick="sendMessage()">Enviar</button>
+    </div>
+
+    <div class="equation-section">
+      <input type="text" id="equationInput" placeholder="Resolva equação: ex: 2*x + 3 = 15" />
+      <button onclick="solveEquation()">🧮 Resolver</button>
+      <div id="equationResult" class="equation-result"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "http://localhost:8000";
+
+    let messages = [
+      {
+        role: "system",
+        content: "Assuma o papel de assistente técnico especializado em TODAS as engenharias (civil, mecânica, elétrica, química, ambiental, materiais, computação, biomédica, automação etc.). Responda com rigor técnico, clareza e didática. Inclua fórmulas, unidades, normas (ex: NBR, ISO, IEEE), interpretação prática, cálculos passo-a-passo, tabelas, gráficos. Se faltar informação, peça esclarecimentos."
+      }
+    ];
+
+    function addMessage(role, content) {
+      const chatBox = document.getElementById("chatBox");
+      const div = document.createElement("div");
+      div.className = `message ${role}`;
+      div.textContent = content;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById("userInput");
+      const text = input.value.trim();
+      if (!text) return;
+
+      addMessage("user", text);
+      input.value = "";
+      messages.push({ role: "user", content: text });
+
+      try {
+        const res = await fetch(`${API_URL}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages })
+        });
+        const data = await res.json();
+        addMessage("assistant", data.response);
+        messages.push({ role: "assistant", content: data.response });
+      } catch (e) {
+        addMessage("assistant", "❌ Erro ao conectar com a IA. Verifique se o backend está rodando.");
+      }
+    }
+
+    async function uploadFile() {
+      const fileInput = document.getElementById("fileInput");
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("Selecione um arquivo primeiro.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const res = await fetch(`${API_URL}/upload-data`, {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        addMessage("assistant", `✅ Arquivo carregado: ${data.filename}\nLinhas: ${data.row_count}\nColunas: ${data.columns.join(', ')}`);
+      } catch (e) {
+        addMessage("assistant", "❌ Erro ao enviar arquivo. Verifique o formato (CSV ou Excel).");
+      }
+    }
+
+    async function solveEquation() {
+      const eq = document.getElementById("equationInput").value.trim();
+      if (!eq) return;
+
+      try {
+        const res = await fetch(`${API_URL}/solve-equation`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ equation: eq })
+        });
+        const data = await res.json();
+        document.getElementById("equationResult").textContent = `Solução: ${data.solution}`;
+      } catch (e) {
+        document.getElementById("equationResult").textContent = "❌ Erro ao resolver equação.";
+      }
+    }
+
+    document.getElementById("userInput").addEventListener("keypress", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>
