@@ -3,10 +3,11 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sympy import symbols, Eq, solve, sympify
-import pandas as pd
+import csv
 import io
 import os
 from openai import OpenAI
+from openpyxl import load_workbook
 
 app = FastAPI(
     title="SYNAPTIC ENGINEERING AI API",
@@ -78,15 +79,35 @@ async def upload_data(file: UploadFile = File(...)):
     try:
         content = await file.read()
         if file.filename.endswith('.csv'):
-            df = pd.read_csv(io.BytesIO(content))
+            # Processa CSV com biblioteca padrão
+            text = content.decode('utf-8')
+            reader = csv.DictReader(io.StringIO(text))
+            data = list(reader)
+            columns = reader.fieldnames if reader.fieldnames else []
+            return {
+                "filename": file.filename,
+                "columns": columns,
+                "row_count": len(data),
+                "preview": data[:5]
+            }
         else:
-            df = pd.read_excel(io.BytesIO(content))
-        
-        return {
-            "filename": file.filename,
-            "columns": df.columns.tolist(),
-            "row_count": len(df),
-            "preview": df.head(5).to_dict(orient="records")
-        }
+            # Processa Excel com openpyxl (sem pandas)
+            workbook = load_workbook(io.BytesIO(content), read_only=True)
+            sheet = workbook.active
+            rows = list(sheet.iter_rows(values_only=True))
+            if not rows:
+                raise ValueError("Arquivo Excel vazio.")
+            
+            headers = rows[0] if rows else []
+            data = []
+            for row in rows[1:6]:  # Primeiras 5 linhas de dados
+                data.append(dict(zip(headers, row)))
+            
+            return {
+                "filename": file.filename,
+                "columns": [str(h) for h in headers],
+                "row_count": len(rows) - 1,
+                "preview": data
+            }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao processar arquivo: {str(e)}")
