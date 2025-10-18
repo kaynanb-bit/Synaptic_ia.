@@ -7,7 +7,6 @@ import csv
 import io
 import os
 from openai import OpenAI
-from openpyxl import load_workbook
 
 app = FastAPI(
     title="SYNAPTIC ENGINEERING AI API",
@@ -73,41 +72,20 @@ async def solve_equation(request: EquationRequest):
 
 @app.post("/upload-data")
 async def upload_data(file: UploadFile = File(...)):
-    if not file.filename.endswith(('.csv', '.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="Formato de arquivo não suportado. Use CSV ou Excel.")
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Apenas arquivos CSV são suportados.")
     
     try:
         content = await file.read()
-        if file.filename.endswith('.csv'):
-            # Processa CSV com biblioteca padrão
-            text = content.decode('utf-8')
-            reader = csv.DictReader(io.StringIO(text))
-            data = list(reader)
-            columns = reader.fieldnames if reader.fieldnames else []
-            return {
-                "filename": file.filename,
-                "columns": columns,
-                "row_count": len(data),
-                "preview": data[:5]
-            }
-        else:
-            # Processa Excel com openpyxl (sem pandas)
-            workbook = load_workbook(io.BytesIO(content), read_only=True)
-            sheet = workbook.active
-            rows = list(sheet.iter_rows(values_only=True))
-            if not rows:
-                raise ValueError("Arquivo Excel vazio.")
-            
-            headers = rows[0] if rows else []
-            data = []
-            for row in rows[1:6]:  # Primeiras 5 linhas de dados
-                data.append(dict(zip(headers, row)))
-            
-            return {
-                "filename": file.filename,
-                "columns": [str(h) for h in headers],
-                "row_count": len(rows) - 1,
-                "preview": data
-            }
+        text = content.decode('utf-8')
+        reader = csv.DictReader(io.StringIO(text))
+        data = list(reader)
+        columns = reader.fieldnames if reader.fieldnames else []
+        return {
+            "filename": file.filename,
+            "columns": columns,
+            "row_count": len(data),
+            "preview": data[:5]
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao processar arquivo: {str(e)}")
