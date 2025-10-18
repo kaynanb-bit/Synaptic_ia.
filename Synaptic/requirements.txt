@@ -1,6 +1,6 @@
 fastapi==0.115.0
 uvicorn==0.30.6
-openai==1.47.0
+openai==1.39.0
 sympy==1.13.3
 python-multipart==0.0.9
 python-dotenv==1.0.1
