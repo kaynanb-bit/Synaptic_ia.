@@ -7,7 +7,6 @@ import csv
 import io
 import os
 from openai import OpenAI
-import httpx
 
 app = FastAPI(
     title="SYNAPTIC ENGINEERING AI API",
@@ -23,20 +22,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Desativa proxies do sistema
-os.environ.pop('HTTP_PROXY', None)
-os.environ.pop('HTTPS_PROXY', None)
-os.environ.pop('http_proxy', None)
-os.environ.pop('https_proxy', None)
+# Remove variáveis de proxy (não são necessárias no Render)
+for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
+    os.environ.pop(key, None)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise RuntimeError("Variável de ambiente OPENAI_API_KEY não configurada!")
 
-# Cria cliente HTTP sem proxies
-http_client = httpx.Client(proxies={})
-
-client = OpenAI(api_key=OPENAI_API_KEY, http_client=http_client)
+# Cria o cliente diretamente — sem proxies
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 class ChatRequest(BaseModel):
     messages: list
