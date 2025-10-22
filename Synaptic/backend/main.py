@@ -1,4 +1,3 @@
-# Synaptic/backend/main.py
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -9,17 +8,15 @@ import io
 import os
 from openai import OpenAI
 
-# Cria o app FastAPI
 app = FastAPI(
     title="SYNAPTIC ENGINEERING AI",
     description="Assistente técnico de engenharia com IA",
     version="1.0.0"
 )
 
-# Serve o frontend estático da pasta Synaptic (um nível acima de backend/)
-app.mount("/", StaticFiles(directory="../", html=True), name="static")
+# Serve o index.html da raiz
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
 
-# Configura CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,25 +25,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Remove variáveis de proxy (não são necessárias no Render)
+# Remove proxies (não são necessários no Render)
 for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
     os.environ.pop(key, None)
 
-# Inicializa o cliente OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY não configurada!")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# Modelos de dados
 class ChatRequest(BaseModel):
     messages: list
 
 class EquationRequest(BaseModel):
     equation: str
 
-# Rotas da API
 @app.post("/chat")
 async def chat_completion(request: ChatRequest):
     try:
